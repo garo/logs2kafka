@@ -1,7 +1,7 @@
 logs2kafka
 ==========
 
-Simple tool to listen for incoming log messages and send them further to Kafka.
+Simple tool to listen for incoming log messages and send them further to Kafka (version 0.9 or greater is required).
 
 The tool is designed to produce JSON based log messages which have at least the following fields:
 

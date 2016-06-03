@@ -10,7 +10,8 @@
     "server": "./server.js"
   },
   "scripts": {
-    "test": "make test"
+    "test": "make test",
+    "start": "node app.js"
   },
   "devDependencies": {
     "jshint": "2.7.0",

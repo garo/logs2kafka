@@ -27,14 +27,10 @@ describe('server', function() {
     var client = new net.Socket();
 	client.connect(8061, '127.0.0.1', function() {
 		connected = true;
-		console.log("connected");
 		client.write(JSON.stringify({"service":"test"}) + "\n");
-	});
-
-	client.on('data', function(data) {
-		received = data;
-		console.log("got data", received);
-		client.destroy(); // kill client after server's response
+		client.destroy();
+		server.close();
+		done();
 	});
 
 	client.on('close', function() {

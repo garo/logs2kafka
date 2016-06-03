@@ -15,6 +15,13 @@ In addition if a SERVER_IP env variable is provided a "server_ip" field is added
 
 Each message is sent to a kafka cluster (**KAFKA_CONNECTION_STRING** env variable, eg. "localhost:9042") into a topic (**TOPIC** env variable, default is "logs"), into a random partition inside this topic. If the partition is not available then another partition is picked up by random.
 
+A single message can have any additional fields and the relay simply passes these thru without modification.
+
+Other suggested fields:
+
+ - "level" being ["DEBUG", "INFO", "WARN", "ERROR"]
+ - "msg" being a human readable log message
+
 Sending logs to this relay
 --------------------------
 

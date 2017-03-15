@@ -1,7 +1,12 @@
-FROM    node:6.2.0
-WORKDIR /logs2kafka
-COPY    package.json /logs2kafka/
-RUN     npm install
-COPY    . /logs2kafka
-CMD     ["npm", "start"]
+FROM golang:1.6
 
+RUN mkdir -p /go/src/app
+WORKDIR /go/src/app
+CMD ["go-wrapper", "run", "logs2kafka"]
+
+COPY . /go/src/app
+
+RUN go-wrapper download
+RUN go-wrapper install
+
+EXPOSE 8061

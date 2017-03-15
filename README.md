@@ -43,3 +43,8 @@ Service will also send some statsd metrics into a statsd server (**STATSD_HOST**
  - `logs2kafka.retrying` is incremented each time a message is being tried into another partition (so first try does not count).
 
  - `logs2kafka.couldNotSend` is incremented if message failed completely and was lost.
+
+Local machine logs and tailing
+------------------------------
+
+As logs2kafka can store local copy of the logs into the machine with log rotation, these logs can be viewed and tailed with the logs2kafka command. Type "logs2kafka tail <name of the topic>" to start tailing.

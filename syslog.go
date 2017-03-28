@@ -1,13 +1,17 @@
 package main
 
-import "net"
-import "strconv"
-import "strings"
-import "github.com/Jeffail/gabs"
-import "time"
-import "errors"
-import "fmt"
-import "os"
+import (
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Jeffail/gabs"
+)
 
 type StringWriter interface {
 	WriteString(string) (int, error)
@@ -27,7 +31,7 @@ func (s *Syslog) Init(port int) error {
 	s.Port = port
 	s.close = make(chan bool)
 
-	ServerAddr,err := net.ResolveUDPAddr("udp",":" + strconv.Itoa(port))
+	ServerAddr, err := net.ResolveUDPAddr("udp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return err
 	}
@@ -36,7 +40,6 @@ func (s *Syslog) Init(port int) error {
 	if err != nil {
 		return err
 	}
-
 
 	buf := make([]byte, 9000)
 
@@ -51,7 +54,7 @@ func (s *Syslog) Init(port int) error {
 			default:
 
 				ServerConn.SetDeadline(time.Now().Add(time.Millisecond * 100))
-				n,_,err := ServerConn.ReadFromUDP(buf)
+				n, _, err := ServerConn.ReadFromUDP(buf)
 
 				if s.Messages != nil && err == nil {
 
@@ -70,7 +73,7 @@ func (s *Syslog) Init(port int) error {
 	}()
 
 	return nil
-	
+
 }
 
 func (s *Syslog) Close() {
@@ -104,6 +107,11 @@ func ExtractPriority(buffer []byte, cursor *int, l int) (Priority, error) {
 
 	priority := Priority{}
 
+	// Skip numbers and spaces before priority
+	for (buffer[*cursor] >= '0' && buffer[*cursor] <= '9') || buffer[*cursor] == ' ' {
+		*cursor = *cursor + 1
+	}
+
 	if buffer[*cursor] != '<' {
 		return priority, errors.New("No priority start character")
 	}
@@ -116,7 +124,7 @@ func ExtractPriority(buffer []byte, cursor *int, l int) (Priority, error) {
 			return priority, errors.New("No priority end character or priority too long")
 		}
 
-		c := buffer[i]
+		c := buffer[*cursor+i]
 
 		if c == '>' {
 			if i == 1 {
@@ -138,13 +146,14 @@ func ExtractPriority(buffer []byte, cursor *int, l int) (Priority, error) {
 
 			priDigit = (priDigit * 10) + v
 		} else {
+			//fmt.Printf("Priority: %s\n", string(c))
 			return priority, errors.New("Priority was not valid digit")
 		}
 
 		i++
 	}
 
-	return priority, errors.New("No end found")	
+	return priority, errors.New("No end found")
 }
 
 func ParseSyslogMessage(buffer []byte) (Message, error) {
@@ -185,8 +194,14 @@ func ParseSyslogMessage(buffer []byte) (Message, error) {
 			return m, errors.New("Malformed input on phase 1, assuming legacy date format")
 		}
 
+		// Add docker/ to tag string if it's missing (as is the case with k8s, for example)
+		var match, _ = regexp.MatchString("^docker", parts[5])
+		if !match {
+			parts[5] = "docker/" + parts[5]
+		}
+
 		tags = strings.SplitN(parts[5], "/", 4)
-		//fmt.Printf("tags: %+v, len: %d", tags, len(tags))
+		//fmt.Printf("tags: %+v, len: %d\n", tags, len(tags))
 		if len(tags) != 4 {
 			return m, errors.New("Malformed input on phase 2, assuming legacy date format")
 		}
@@ -207,7 +222,7 @@ func ParseSyslogMessage(buffer []byte) (Message, error) {
 
 	} else if len(payload) > 25 && payload[10] == 'T' && payload[24] == '{' { // Detect payload which has ISO8601 timestamp in the beginning
 		m = JSONToMessage(payload[24:])
-		err = m.ParseJSON()		
+		err = m.ParseJSON()
 		if err != nil {
 			m.Container = gabs.New()
 			m.Container.Set(payload, "msg")
@@ -217,7 +232,15 @@ func ParseSyslogMessage(buffer []byte) (Message, error) {
 		m.Container.Set(payload, "msg")
 	}
 
-	m.Container.Set(tags[1], "container_name")
+	// if the container_name includes periods (as with k8s), use only the first part
+	var nameParts = strings.Split(tags[1], ".")
+	if len(nameParts) > 1 {
+		m.Container.Set(nameParts[0], "container_name")
+		m.Container.Set(tags[1], "pod_name")
+	} else {
+		m.Container.Set(tags[1], "container_name")
+	}
+
 	m.Container.Set(tags[2], "container_id")
 
 	n := strings.Index(tags[3], "[")
@@ -229,4 +252,3 @@ func ParseSyslogMessage(buffer []byte) (Message, error) {
 
 	return m, nil
 }
-

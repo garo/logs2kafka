@@ -1,9 +1,10 @@
 package main
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"net"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractPriority(t *testing.T) {
@@ -56,6 +57,27 @@ func TestParseSyslogMessage2(t *testing.T) {
 
 }
 
+func TestParseSyslogMessage3(t *testing.T) {
+	m, err := ParseSyslogMessage([]byte("436 <27>1 2017-03-28T10:04:48Z jami-k8s-test-worker-0 k8s_kube-proxy.2023dc8e_kube-proxy-172.16.1.234_kube-system_7daefb93d6c2ac8f5a79211bec23a3f4_11993b80/6bfc10ddb6e2/quay.io/coreos/hyperkube:v1.5.2_coreos.1 2177 k8s_kube-proxy.2023dc8e_kube-proxy-172.16.1.234_kube-system_7daefb93d6c2ac8f5a79211bec23a3f4_11993b80/6bfc10ddb6e2/quay.io/coreos/hyperkube:v1.5.2_coreos.1 I0328 10:04:48.569582       1 server.go:215] Using iptables Proxier."))
+	assert.Nil(t, err)
+
+	value, ok := m.Container.Path("container_name").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "k8s_kube-proxy")
+
+	value, ok = m.Container.Path("pod_name").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "k8s_kube-proxy.2023dc8e_kube-proxy-172.16.1.234_kube-system_7daefb93d6c2ac8f5a79211bec23a3f4_11993b80")
+
+	value, ok = m.Container.Path("container_id").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "6bfc10ddb6e2")
+
+	value, ok = m.Container.Path("docker_image").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "quay.io/coreos/hyperkube:v1.5.2_coreos.1")
+
+}
 
 func TestParseSyslogMessageJSON(t *testing.T) {
 
@@ -103,7 +125,6 @@ func TestParseSyslogMessageJSONWitthISOTimestamp(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, value, "foobar")
 
-
 }
 
 func TestParseSyslogMessageJSONWitthISOTimestampAndMessageTimestamp(t *testing.T) {
@@ -135,25 +156,24 @@ func TestSyslog(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 9999, s.Port)
 
-    ServerAddr, err := net.ResolveUDPAddr("udp","127.0.0.1:9999")
+	ServerAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:9999")
 	assert.Nil(t, err)
-    LocalAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	LocalAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	assert.Nil(t, err)
 
-    Conn, err := net.DialUDP("udp", LocalAddr, ServerAddr)
+	Conn, err := net.DialUDP("udp", LocalAddr, ServerAddr)
 	assert.Nil(t, err)
- 
-    defer Conn.Close()
-    _,err = Conn.Write([]byte("<27>Aug  7 18:33:19 HOSTNAME docker/hello-world/foobar/5790672ab6a0[9103]: Hello from Docker."))
-    assert.Nil(t, err)
-    Conn.Close()
 
+	defer Conn.Close()
+	_, err = Conn.Write([]byte("<27>Aug  7 18:33:19 HOSTNAME docker/hello-world/foobar/5790672ab6a0[9103]: Hello from Docker."))
+	assert.Nil(t, err)
+	Conn.Close()
 
-    msg := <-s.Messages
-    value, ok := msg.Container.Path("msg").Data().(string)
-    assert.Equal(t, true, ok)
-    assert.Equal(t, "Hello from Docker.", value)
+	msg := <-s.Messages
+	value, ok := msg.Container.Path("msg").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "Hello from Docker.", value)
 
-    s.Close()
+	s.Close()
 
 }

@@ -1,12 +1,8 @@
-FROM golang:1.6
+FROM alpine
 
-RUN mkdir -p /go/src/app
-WORKDIR /go/src/app
-CMD ["go-wrapper", "run", "logs2kafka"]
-
-COPY . /go/src/app
-
-RUN go-wrapper download
-RUN go-wrapper install
+ADD logs2kafka /
+CMD /logs2kafka logs2kafka
 
 EXPOSE 8061
+
+# BUILD: # docker run --rm -v $PWD:/usr/src/$(basename $PWD) -w /usr/src/$(basename $PWD) golang:latest /bin/bash -c "go get -v ./...; go build -a -ldflags '-s' -tags netgo -installsuffix netgo -v; ldd $(basename $PWD)"

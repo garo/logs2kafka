@@ -172,7 +172,7 @@ func ParseSyslogMessage(buffer []byte) (Message, error) {
 		return m, err
 	}
 
-	stringbuffer := string(buffer[cursor:])
+	stringbuffer := strings.TrimSpace(string(buffer[cursor:]))
 
 	parts = strings.SplitN(stringbuffer, " ", 7)
 	//for i := 0; i < len(parts); i++ {

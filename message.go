@@ -219,6 +219,11 @@ func EnsureMessageLevel(m *Message) error {
 
 	value, ok := m.Container.Path("level").Data().(string)
 	if ok {
+		if upperCaseValue := strings.ToUpper(value); upperCaseValue != value {
+			m.Container.Set(upperCaseValue, "level")
+			value = upperCaseValue
+		}
+
 		found := false
 		for i := 0; i < len(validLevels); i++ {
 			if validLevels[i] == value {

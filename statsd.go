@@ -27,12 +27,12 @@ func SendStatsdMetricsFromMessage(statsd StatisticsSender, m *Message) (error) {
 	level, ok := m.Container.Path("level").Data().(string)
 	if ok {
 		if level == "DEBUG" {
-			statsd.Inc(fmt.Sprintf("%s.app.log.DEBUG", service), 1, 0.1)
+			statsd.Inc(fmt.Sprintf("app.log.messages,service=%s,level=DEBUG", service), 1, 0.1)
 		} else {
-			statsd.Inc(fmt.Sprintf("%s.app.log.%s", service, level), 1, 1)
+			statsd.Inc(fmt.Sprintf("app.log.messages,service=%s,level=%s", service, level), 1, 1)
 		}
 	} else {
-		statsd.Inc(fmt.Sprintf("%s.app.log.OTHER", service), 1, 0.4)
+		statsd.Inc(fmt.Sprintf("app.log.messages,service=%s,level=OTHER", service), 1, 0.4)
 	}
 
 	return nil

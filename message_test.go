@@ -64,7 +64,7 @@ func TestEnsureMessageLevel2(t *testing.T) {
 
 func TestEnsureMessageLevel_LowerCaseLevel(t *testing.T) {
 
-	m := JSONToMessage("{\"level\":\"DEBUG\",\"msg\":\"Hello, World!\\n\"}")
+	m := JSONToMessage("{\"level\":\"debug\",\"msg\":\"Hello, World!\\n\"}")
 	err := m.ParseJSON()
 	assert.Nil(t, err)
 

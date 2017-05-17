@@ -2,102 +2,100 @@ package main
 
 import "github.com/Jeffail/gabs"
 import "github.com/buger/jsonparser"
+
 //import "strconv"
 import "time"
 import "strings"
 import "fmt"
 import "bytes"
 
-
 type ServerInfo struct {
 	Hostname string
 	ServerIP string
 }
 
-
 type Message struct {
-	Topic string
-	Data []byte
+	Topic     string
+	Data      []byte
 	Container *gabs.Container
 }
 
-
 var validLevels = [...]string{
-		"DEBUG",
-		"INFO",
-		"WARN",
-		"ERROR",
-	}
+	"DEBUG",
+	"INFO",
+	"WARN",
+	"ERROR",
+}
 
 var docker_left_names = [...]string{
-		"admiring_",
-		"adoring_",
-		"agitated_",
-		"amazing_",
-		"angry_",
-		"awesome_",
-		"backstabbing_",
-		"berserk_",
-		"big_",
-		"boring_",
-		"clever_",
-		"cocky_",
-		"compassionate_",
-		"condescending_",
-		"cranky_",
-		"desperate_",
-		"determined_",
-		"distracted_",
-		"dreamy_",
-		"drunk_",
-		"ecstatic_",
-		"elated_",
-		"elegant_",
-		"evil_",
-		"fervent_",
-		"focused_",
-		"furious_",
-		"gigantic_",
-		"gloomy_",
-		"goofy_",
-		"grave_",
-		"happy_",
-		"high_",
-		"hopeful_",
-		"hungry_",
-		"infallible_",
-		"jolly_",
-		"jovial_",
-		"kickass_",
-		"lonely_",
-		"loving_",
-		"mad_",
-		"modest_",
-		"naughty_",
-		"nauseous_",
-		"nostalgic_",
-		"pedantic_",
-		"pensive_",
-		"prickly_",
-		"reverent_",
-		"romantic_",
-		"sad_",
-		"serene_",
-		"sharp_",
-		"sick_",
-		"silly_",
-		"sleepy_",
-		"small_",
-		"stoic_",
-		"stupefied_",
-		"suspicious_",
-		"tender_",
-		"thirsty_",
-		"tiny_",
-		"trusting_",
-	}
+	"admiring_",
+	"adoring_",
+	"agitated_",
+	"amazing_",
+	"angry_",
+	"awesome_",
+	"backstabbing_",
+	"berserk_",
+	"big_",
+	"boring_",
+	"clever_",
+	"cocky_",
+	"compassionate_",
+	"condescending_",
+	"cranky_",
+	"desperate_",
+	"determined_",
+	"distracted_",
+	"dreamy_",
+	"drunk_",
+	"ecstatic_",
+	"elated_",
+	"elegant_",
+	"evil_",
+	"fervent_",
+	"focused_",
+	"furious_",
+	"gigantic_",
+	"gloomy_",
+	"goofy_",
+	"grave_",
+	"happy_",
+	"high_",
+	"hopeful_",
+	"hungry_",
+	"infallible_",
+	"jolly_",
+	"jovial_",
+	"kickass_",
+	"lonely_",
+	"loving_",
+	"mad_",
+	"modest_",
+	"naughty_",
+	"nauseous_",
+	"nostalgic_",
+	"pedantic_",
+	"pensive_",
+	"prickly_",
+	"reverent_",
+	"romantic_",
+	"sad_",
+	"serene_",
+	"sharp_",
+	"sick_",
+	"silly_",
+	"sleepy_",
+	"small_",
+	"stoic_",
+	"stupefied_",
+	"suspicious_",
+	"tender_",
+	"thirsty_",
+	"tiny_",
+	"trusting_",
+}
 
-func JSONToMessage(str string) (Message) {
+func JSONToMessage(str string) Message {
 	//fmt.Printf("JSONToMessage: %+v\n", str)
 	m := Message{}
 
@@ -187,7 +185,7 @@ func EnsureMessageTimestamp(m *Message) error {
 //
 // Then:
 //   1) Set 'service' field to service name if it's not already set
-//   2) Set m.Topic to the service name 
+//   2) Set m.Topic to the service name
 func EnsureMessageService(m *Message) error {
 
 	service, ok := m.Container.Path("service").Data().(string)
@@ -197,7 +195,7 @@ func EnsureMessageService(m *Message) error {
 	} else {
 		container_name, ok := m.Container.Path("container_name").Data().(string)
 		if ok {
-			
+
 			match := false
 			for _, prefix := range docker_left_names {
 				if strings.HasPrefix(container_name, prefix) {
@@ -214,11 +212,15 @@ func EnsureMessageService(m *Message) error {
 	return nil
 }
 
-
 func EnsureMessageLevel(m *Message) error {
 
 	value, ok := m.Container.Path("level").Data().(string)
 	if ok {
+		if upperCaseValue := strings.ToUpper(value); upperCaseValue != value {
+			m.Container.Set(upperCaseValue, "level")
+			value = upperCaseValue
+		}
+
 		found := false
 		for i := 0; i < len(validLevels); i++ {
 			if validLevels[i] == value {

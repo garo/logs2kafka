@@ -1,8 +1,8 @@
 package main
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestMessageVerifier(t *testing.T) {
@@ -45,9 +45,8 @@ func TestEnsureMessageLevel(t *testing.T) {
 
 	value, ok := m.Container.Path("level").Data().(string)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, value, "DEBUG")	
+	assert.Equal(t, value, "DEBUG")
 }
-
 
 func TestEnsureMessageLevel2(t *testing.T) {
 
@@ -60,14 +59,27 @@ func TestEnsureMessageLevel2(t *testing.T) {
 
 	value, ok := m.Container.Path("level").Data().(string)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, value, "UNKNOWN")	
+	assert.Equal(t, value, "UNKNOWN")
 }
 
+func TestEnsureMessageLevel_LowerCaseLevel(t *testing.T) {
+
+	m := JSONToMessage("{\"level\":\"DEBUG\",\"msg\":\"Hello, World!\\n\"}")
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	err = EnsureMessageLevel(&m)
+	assert.Nil(t, err)
+
+	value, ok := m.Container.Path("level").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "DEBUG")
+}
 
 func TestEnsureMessageService(t *testing.T) {
 
 	m := JSONToMessage("{\"container_name\":\"foobar\"}")
-	err := m.ParseJSON()	
+	err := m.ParseJSON()
 	assert.Nil(t, err)
 
 	err = EnsureMessageService(&m)
@@ -82,7 +94,7 @@ func TestEnsureMessageService(t *testing.T) {
 func TestEnsureMessageServiceNothing(t *testing.T) {
 
 	m := JSONToMessage("{}")
-	err := m.ParseJSON()	
+	err := m.ParseJSON()
 	assert.Nil(t, err)
 
 	err = EnsureMessageService(&m)
@@ -138,9 +150,7 @@ func TestEnsureMessageServiceAddsHostnameAndServerIP(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, value, "thehost")
 
-
 	value, ok = m.Container.Path("server_ip").Data().(string)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, value, "10.0.0.1")
 }
-

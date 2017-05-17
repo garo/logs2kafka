@@ -6,7 +6,6 @@ import "fmt"
 import "hash"
 import "hash/fnv"
 
-
 type KafkaProducer struct {
 	Brokers []string
 
@@ -53,10 +52,9 @@ func (p *inconsistentHashPartitioner) RequiresConsistency() bool {
 	return false
 }
 
-
 func (s *KafkaProducer) Init(brokers []string, partition_key string) error {
 	s.Brokers = brokers
-	
+
 	conf := sarama.NewConfig()
 	conf.Producer.Return.Successes = false
 	conf.Producer.Return.Errors = true
@@ -93,7 +91,7 @@ func (s *KafkaProducer) Produce(m Message) {
 
 	km := sarama.ProducerMessage{
 		Topic: m.Topic,
-		Key: s.CommonKey,
+		Key:   s.CommonKey,
 		Value: sarama.ByteEncoder(m.Container.Bytes()),
 	}
 	//fmt.Printf("producer: %+v\n", s.producer)

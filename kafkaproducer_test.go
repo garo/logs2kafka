@@ -1,11 +1,11 @@
 package main
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
+	"testing"
 )
 
 func TestKafkaProducer(t *testing.T) {
@@ -20,17 +20,15 @@ func TestKafkaProducer(t *testing.T) {
 
 	brokers := strings.Split(brokers_str, ",")
 
-
 	err := k.Init(brokers, "mykey")
 	assert.Nil(t, err)
-
 
 	for i := 0; i < 16; i++ {
 		m := JSONToMessage(fmt.Sprintf("{\"level\":\"DEBUG\",\"msg\":\"Hello, World: %d!\\n\"}", i))
 		err := m.ParseJSON()
 		assert.Nil(t, err)
 
-		k.Produce(m)		
+		k.Produce(m)
 	}
 
 	k.Close()

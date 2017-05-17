@@ -16,7 +16,7 @@ type StatisticsSender interface {
 	Raw(string, string, float32) error
 }
 
-func SendStatsdMetricsFromMessage(statsd StatisticsSender, m *Message) (error) {
+func SendStatsdMetricsFromMessage(statsd StatisticsSender, m *Message) error {
 
 	service, ok := m.Container.Path("service").Data().(string)
 	if !ok {

@@ -228,6 +228,11 @@ func EnsureMessageLevel(m *Message) error {
 			}
 		}
 
+		if value == "WARNING" {
+			m.Container.Set("WARN", "level")
+			found = true
+		}
+
 		if !found {
 			m.Container.Set("UNKNOWN", "level")
 		}

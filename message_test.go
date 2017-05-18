@@ -76,6 +76,20 @@ func TestEnsureMessageLevel_LowerCaseLevel(t *testing.T) {
 	assert.Equal(t, value, "DEBUG")
 }
 
+func TestEnsureMessageLevel_WarningIsConvertedToWARN(t *testing.T) {
+
+	m := JSONToMessage("{\"level\":\"warning\",\"msg\":\"Hello, World!\\n\"}")
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	err = EnsureMessageLevel(&m)
+	assert.Nil(t, err)
+
+	value, ok := m.Container.Path("level").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "WARN")
+}
+
 func TestEnsureMessageService(t *testing.T) {
 
 	m := JSONToMessage("{\"container_name\":\"foobar\"}")

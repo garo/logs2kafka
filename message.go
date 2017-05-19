@@ -192,6 +192,14 @@ func EnsureMessageService(m *Message) error {
 
 	if ok {
 		m.Topic = service
+		return nil
+	} 
+
+	kubernetes_container_name, ok := m.Container.Search("_io.kubernetes.container.name").Data().(string)
+
+	if ok {
+		m.Container.Set(kubernetes_container_name, "service")
+		m.Topic = kubernetes_container_name
 	} else {
 		container_name, ok := m.Container.Path("container_name").Data().(string)
 		if ok {

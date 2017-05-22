@@ -172,6 +172,24 @@ func TestGraylogChunkProcessComplete(t *testing.T) {
 
 }
 
+func TestGraylogSingleFullChunkProcessing(t *testing.T) {
+
+	s := Graylog{}
+
+	s.ReceivedChunks = make(map[string]*Chunk)
+	s.Messages = make(chan Message, 10)
+
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x01{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\",\"level\":7}"))
+
+	msg := <-s.Messages
+	value, ok := msg.Container.Path("test").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "foobar", value)
+
+	assert.Equal(t, 0, len(s.ReceivedChunks))
+
+}
+
 func TestGraylogCleanupWorks(t *testing.T) {
 
 	s := Graylog{}

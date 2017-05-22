@@ -29,22 +29,35 @@ type Graylog struct {
 
 	Statsd StatisticsSender
 
-	ReceivedChunks map[string]Chunk
+	ReceivedChunks map[string]*Chunk
+
+	LastCleanup int64
+}
+
+func (s *Graylog) RunCleanup() error {
+	now := time.Now().UnixNano()
+	for k, v := range s.ReceivedChunks {
+		if now > v.Expiration {
+			delete(s.ReceivedChunks, k)
+		}
+	}
+
+	return nil
 }
 
 func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 
 	message_id := string(buffer[2:10])
-	fmt.Printf("message_id: %+v\n", buffer[2:10])
 
 	c, found := s.ReceivedChunks[message_id]
 	if !found {
-		c = Chunk{}
+		c = &Chunk{}
 		// buffer[11] is Sequence count - 1 byte: Total number of chunks this message has.
 		c.TotalCount = int(buffer[11])
 		c.Parts = make([][]byte, c.TotalCount)
-	} else {
-		fmt.Printf("Continuing previous chunk. %+v\n", c)
+
+		// Mark expiration 5 seconds into the future
+		c.Expiration = time.Now().UnixNano() + 5e9
 	}
 
 	// buffer[10] is Sequence number - 1 byte:
@@ -56,17 +69,13 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 	
 	s.ReceivedChunks[message_id] = c
 
-	fmt.Printf("received count %d, total count: %d\n", c.ReceivedCount, c.TotalCount)
 	if c.ReceivedCount == c.TotalCount {
-		fmt.Printf("got all chunks now (%d total, bytes: %d)\n", c.ReceivedCount, c.ReceivedBytes)
 
 		buf := make([]byte, c.ReceivedBytes)
 		cursor := 0
-		for i, sub := range c.Parts {
+		for _, sub := range c.Parts {
 			l := len(sub)
-			fmt.Printf("copying %d bytes: %+v, %+v at pos %d:%d\n", l, i, string(sub), cursor, l)
 			copy(buf[cursor:cursor+l], sub)
-			fmt.Printf("Buffer now: '%s'\n", string(buf))
 			cursor += l
 		}
 
@@ -76,9 +85,16 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 		if err != nil {
 			return err
 		}
+
+		ConvertGraylogFields(&m)
+		delete(s.ReceivedChunks, message_id)
 		s.Messages <- m
 	}
 
+	if s.LastCleanup == 0 || time.Now().UnixNano() > s.LastCleanup + 5e9 {
+		s.LastCleanup = time.Now().UnixNano()
+		s.RunCleanup()
+	}
 
 	return nil
 }
@@ -126,7 +142,7 @@ func (s *Graylog) Init(port int) error {
 		return err
 	}
 
-	buf := make([]byte, 9000)
+	buf := make([]byte, 9500)
 
 	go func() {
 		for {

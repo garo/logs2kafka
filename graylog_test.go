@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"fmt"
 	"net"
+	"time"
 )
 
 func TestGraylogMessageConversion(t *testing.T) {
@@ -56,7 +56,7 @@ func TestGraylogMessageConversionForPodMessage(t *testing.T) {
 	"_io.kubernetes.pod.name":"ads-auction-835331642-rzzgr",
 	"_tag":"test"
 	}`
-	fmt.Println(str)
+
 	m := JSONToMessage(str)
 	err := m.ParseJSON()
 	assert.Nil(t, err)
@@ -113,7 +113,7 @@ func TestGraylogChunkProcessSingle(t *testing.T) {
 
 	s := Graylog{}
 
-	s.ReceivedChunks = make(map[string]Chunk)
+	s.ReceivedChunks = make(map[string]*Chunk)
 
 	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
 
@@ -129,7 +129,7 @@ func TestGraylogChunkProcessSingle2(t *testing.T) {
 
 	s := Graylog{}
 
-	s.ReceivedChunks = make(map[string]Chunk)
+	s.ReceivedChunks = make(map[string]*Chunk)
 
 	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x01\x02,\"test2\":\"hello\"}"))
 
@@ -145,10 +145,13 @@ func TestGraylogChunkProcessComplete(t *testing.T) {
 
 	s := Graylog{}
 
-	s.ReceivedChunks = make(map[string]Chunk)
+	s.ReceivedChunks = make(map[string]*Chunk)
 	s.Messages = make(chan Message, 10)
 
-	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\",\"level\":7"))
+
+	assert.Equal(t, 1, len(s.ReceivedChunks))
+	
 	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x01\x02,\"test2\":\"hello\"}"))
 
 	msg := <-s.Messages
@@ -159,6 +162,66 @@ func TestGraylogChunkProcessComplete(t *testing.T) {
 	value, ok = msg.Container.Path("test2").Data().(string)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, "hello", value)
+
+	// Ensure that ConvertGraylogFields has been called
+	value, ok = msg.Container.Path("level").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "DEBUG", value)
+
+	assert.Equal(t, 0, len(s.ReceivedChunks))
+
+}
+
+func TestGraylogCleanupWorks(t *testing.T) {
+
+	s := Graylog{}
+
+	s.ReceivedChunks = make(map[string]*Chunk)
+	s.Messages = make(chan Message, 10)
+
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
+
+	assert.Equal(t, 1, len(s.ReceivedChunks))
+	s.RunCleanup()
+	assert.Equal(t, 1, len(s.ReceivedChunks))
+
+	chunk := s.ReceivedChunks["\x00\x00\x00\x00\xDE\xAD\xBE\xEF"]
+	chunk.Expiration -= 6e9 // 6 seconds
+	s.RunCleanup()
+	assert.Equal(t, 0, len(s.ReceivedChunks))
+
+}
+
+
+func TestGraylogRunCleanupEvery5Seconds(t *testing.T) {
+
+	s := Graylog{}
+
+	s.ReceivedChunks = make(map[string]*Chunk)
+	s.Messages = make(chan Message, 10)
+	s.LastCleanup = time.Now().UnixNano()
+
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
+
+	// Simulate that six seconds have passed
+	chunk := s.ReceivedChunks["\x00\x00\x00\x00\xDE\xAD\xBE\xEF"]
+	chunk.Expiration -= 6e9
+
+	// A call to HandleChunkedPacket should trigger RunCleanup if previous
+	// was done over 5 seconds ago.
+	//
+	// But since LastCleanup is not changed sending another packet 
+	// not trigger any cleanup
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\x00\x00\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
+	assert.Equal(t, 2, len(s.ReceivedChunks))
+
+	// After this the next HandleChunkedPacket should trigger cleanup
+	s.LastCleanup -= 6e9
+
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\x00\xAD\xBE\xEF\x00\x02{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\""))
+
+	assert.Equal(t, 2, len(s.ReceivedChunks))
+
 }
 
 /*

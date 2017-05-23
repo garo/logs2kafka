@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/Jeffail/gabs"
 )
 
 type Chunk struct {
@@ -233,23 +234,62 @@ func ConvertGraylogFields(m *Message) error {
 		}
 	}
 
-	short_message, ok := m.Container.Path("short_message").Data().(string)
-	if ok {
-		m.Container.Delete("short_message")
-		m.Container.Set(short_message, "msg")
-	}
-
 	// We just drop the float timestamp and generate our own ts field later
 	m.Container.Delete("timestamp")
 
-	// Convert registry2.applifier.info:5005/comet-source-adapter@sha256:f205ed11f1a26bb8ceefc9389ebe6
-	// to registry2.applifier.info:5005/comet-source-adapter:f205ed11f1a26bb8ceefc9389ebe6
-	image_name, ok := m.Container.Path("_image_name").Data().(string)
+	short_message, ok := m.Container.Path("short_message").Data().(string)
 	if ok {
-		docker_image_name := strings.Replace(image_name, "@sha256", "", 1)
-		m.Container.Set(docker_image_name, "docker_image")
+
+		// Check if the short_message is in fact a JSON document and handle that
+		if short_message[0] == '{' {
+			short_message_data := m.Container.Path("short_message").Data().(string)
+			parsed_json_message, err := gabs.ParseJSON([]byte(short_message_data))
+			if err != nil {
+				return err
+			}
+
+			children, _ := parsed_json_message.ChildrenMap()
+			for key, value := range children {
+				_, err = m.Container.Set(value.Data(), key)
+			}
+
+		} else {
+			m.Container.Set(short_message, "msg")
+		}
+
+		m.Container.Delete("short_message")
 	}
 
+	// Process tag. We can extract json properties out with the "key1=value1,key2=value2" notation
+	tag, ok := m.Container.Path("_tag").Data().(string)
+	if ok {
+		parts := strings.Split(tag, ",")
+		replaced := false
+		for _, part := range parts {
+			keyvalue := strings.Split(part, "=")
+			if len(keyvalue) == 2 {
+				fmt.Printf("Found key %s to value %s\n", keyvalue[0], keyvalue[1])
+				m.Container.Set(keyvalue[1], keyvalue[0])
+				replaced = true
+			}
+		}
+
+		// Delete the _tag if we did parse things out from it
+		if replaced {
+			m.Container.Delete("_tag")
+		}
+	}
+
+	// Convert registry2.applifier.info:5005/comet-source-adapter@sha256:f205ed11f1a26bb8ceefc9389ebe6
+	// to registry2.applifier.info:5005/comet-source-adapter:f205ed11f1a26bb8ceefc9389ebe6
+	// But only if there is no docker_image already set as this could be passed from tag handling
+	_, ok = m.Container.Path("docker_image").Data().(string)
+	if !ok {
+		image_name, ok := m.Container.Path("_image_name").Data().(string)
+		if ok {
+			m.Container.Set(image_name, "docker_image")
+		}
+	}
 
 	return nil
 }

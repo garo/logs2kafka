@@ -73,7 +73,84 @@ func TestGraylogMessageConversionForPodMessage(t *testing.T) {
 
 	value, ok = m.Container.Path("docker_image").Data().(string)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, value, "registry2.applifier.info:5005/comet-source-adapter:f205ed11f1a26bbfe3dd127adcf155949b9fb205b19821c8b78ceefc9389ebe6")
+	assert.Equal(t, value, "registry2.applifier.info:5005/comet-source-adapter@sha256:f205ed11f1a26bbfe3dd127adcf155949b9fb205b19821c8b78ceefc9389ebe6")
+
+}
+
+func TestGraylogMessageJSONin_short_message_field(t *testing.T) {
+
+	str := `
+	{"version":"1.1",
+	"host":"delivery-staging-us-east-1b-asg-general",
+	"short_message":"{\"msg\":\"hei\",\"foo\":\"bar\",\"obj\":{\"hello\":\"world\"},\"arr\":[10,20,30]}\r",
+	"timestamp":1.495516067312e+09,
+	"level":6,
+	"_container_id":"82331064bdf5fb786916d5a073269a1b454b2f27112f2c091ed820d834ebe977",
+	"_container_name":"mycontainer","_created":"2017-05-23T05:07:47.079689035Z",
+	"_image_id":"sha256:ebcd9d4fca80e9e8afc525d8a38e7c56825dfb4a220ed77156f9fb13b14d4ab7",
+	"_image_name":"ubuntu:16.04","_tag":"test"
+	}`
+
+	m := JSONToMessage(str)
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	ConvertGraylogFields(&m)
+
+	value, ok := m.Container.Path("msg").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "hei")
+
+	value, ok = m.Container.Path("short_message").Data().(string)
+	assert.Equal(t, ok, false)
+
+	value, ok = m.Container.Path("foo").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "bar")
+
+	value, ok = m.Container.Path("obj.hello").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "world")
+
+	assert.Equal(t, 10, m.Container.S("arr").Index(0).Data().(float64))
+	assert.Equal(t, 20, m.Container.S("arr").Index(1).Data().(float64))
+	assert.Equal(t, 30, m.Container.S("arr").Index(2).Data().(float64))
+
+}
+
+func TestGraylogMessageTagFieldExtraction(t *testing.T) {
+
+	str := `{"version":"1.1",
+	"host":"delivery-staging-us-east-1b-master-0",
+	"short_message":"moi\r",
+	"timestamp":1.495174443806e+09,
+	"level":3,
+	"_command":"/hyperkube controller-manager --master=http://127.0.0.1:8080 --service-account-private-key-file=/etc/kubernetes/ssl/client-server-key.pem --root-ca-file=/etc/kubernetes/ssl/ca.pem --leader-elect=true --cloud-provider=aws",
+	"_container_id":"e02acf37f963ec2d46ede21766070559aa4a79c1afc8582e27d580ef2326800e",
+	"_container_name":"k8s_kube-controller-manager_kube-controller-manager-ip-172-16-1-150.ec2.internal_kube-system_b50f4a11f4401d857fc4bbb355fceae8_0",
+	"_created":"2017-05-19T06:14:02.196020749Z",
+	"_image_id":"sha256:91a48ff795cebb88646ec6cc4955bf7f500466feb44ec18b508f2ce94ed0d9b7",
+	"_image_name":"quay.io/coreos/hyperkube@sha256:77b81b118e6e231d284e6ae0ec50d898dadd88af469df33d5cf3f3a2d0d44473",
+	"_io.kubernetes.container.name":"kube-controller-manager",
+	"_io.kubernetes.pod.name":"kube-controller-manager-ip-172-16-1-150.ec2.internal",
+	"_tag":"docker_image=registry.applifier.info:5000/kafka:0.8.2.1,foo=bar"}`
+	m := JSONToMessage(str)
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	ConvertGraylogFields(&m)
+
+	value, ok := m.Container.Path("docker_image").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "registry.applifier.info:5000/kafka:0.8.2.1")
+
+	value, ok = m.Container.Path("_image_name").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "quay.io/coreos/hyperkube@sha256:77b81b118e6e231d284e6ae0ec50d898dadd88af469df33d5cf3f3a2d0d44473")
+
+	value, ok = m.Container.Path("foo").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "bar")
 
 }
 

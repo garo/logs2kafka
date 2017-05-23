@@ -1,1 +1,3 @@
-logs2kafka
+vendor/gopkg.in
+vendor/github.com
+vendor/golang.org

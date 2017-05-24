@@ -237,7 +237,7 @@ func main() {
 				if !c.GlobalBool("disable-kafka") {
 					err = kafka.Init(brokers, hostname)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error getting opening kafka connection: %+v\n", err)
+						fmt.Fprintf(os.Stderr, "Error opening kafka connection: %+v\n", err)
 					}
 				}
 
@@ -247,12 +247,14 @@ func main() {
 				}
 				statsd.Inc("logs2kafka.app.started", 1, 1)
 
+				messages := make(chan Message)
+
 				syslog := Syslog{}
-				syslog.Messages = make(chan Message)
+				syslog.Messages = messages
 				syslog.Init(int(syslog_port))
 
 				graylog := Graylog{}
-				graylog.Messages = make(chan Message)
+				graylog.Messages = messages
 				graylog.Init(int(graylog_port))
 
 				serverInfo := ServerInfo{}

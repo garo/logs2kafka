@@ -39,6 +39,41 @@ func TestGraylogMessageConversion(t *testing.T) {
 
 }
 
+func TestGraylogEmptyMessage(t *testing.T) {
+
+	str := `{"short_message":""}`
+	m := JSONToMessage(str)
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	ConvertGraylogFields(&m)
+
+	value, ok := m.Container.Path("msg").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "")
+}
+
+func TestGraylogCorruptedMessage(t *testing.T) {
+
+	str := `{"short_message":"{\"", "foo": "bar"}`
+	m := JSONToMessage(str)
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	err = ConvertGraylogFields(&m)
+	assert.Equal(t, err, nil)
+	
+
+	value, ok := m.Container.Path("foo").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "bar")
+
+	value, ok = m.Container.Path("msg").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "{\"")
+
+}
+
 func TestGraylogMessageConversionForPodMessage(t *testing.T) {
 
 	str := `

@@ -241,18 +241,20 @@ func ConvertGraylogFields(m *Message) error {
 	if ok {
 
 		// Check if the short_message is in fact a JSON document and handle that
-		if short_message[0] == '{' {
+		if len(short_message) > 1 && short_message[0] == '{' {
 			short_message_data := m.Container.Path("short_message").Data().(string)
 			parsed_json_message, err := gabs.ParseJSON([]byte(short_message_data))
+
 			if err != nil {
-				return err
-			}
+				// Error in JSON parse, just pass the data through as-is
+				m.Container.Set(short_message, "msg")
+			} else {
 
-			children, _ := parsed_json_message.ChildrenMap()
-			for key, value := range children {
-				_, err = m.Container.Set(value.Data(), key)
+				children, _ := parsed_json_message.ChildrenMap()
+				for key, value := range children {
+					_, err = m.Container.Set(value.Data(), key)
+				}
 			}
-
 		} else {
 			m.Container.Set(short_message, "msg")
 		}

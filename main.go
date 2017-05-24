@@ -63,6 +63,12 @@ func main() {
 			Value:  8601,
 			EnvVar: "SYSLOG_LISTEN_PORT",
 		},
+		cli.IntFlag{
+			Name:   "graylog-port",
+			Usage:  "Port where to listen graylog messages in UDP",
+			Value:  5044,
+			EnvVar: "GRAYLOG_LISTEN_PORT",
+		},		
 		cli.StringFlag{
 			Name:   "statsd-host",
 			Usage:  "Host where to send statsd metrics.",
@@ -206,6 +212,7 @@ func main() {
 				topic_prefix := c.GlobalString("topic-prefix")
 				brokers := strings.Split(c.GlobalString("kafka-connection-string"), ",")
 				syslog_port := c.GlobalInt("syslog-port")
+				graylog_port := c.GlobalInt("graylog-port")
 				statsd_host := c.GlobalString("statsd-host")
 				statsd_port := c.GlobalInt("statsd-port")
 				file_logs_path := c.GlobalString("file-logs-path")
@@ -216,6 +223,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "topic_prefix: %s\n", topic_prefix)
 				fmt.Fprintf(os.Stderr, "brokers: %+v\n", brokers)
 				fmt.Fprintf(os.Stderr, "syslog listen port: %d\n", syslog_port)
+				fmt.Fprintf(os.Stderr, "graylog listen port: %d\n", graylog_port)
 				fmt.Fprintf(os.Stderr, "statsd host: %s\n", statsd_host)
 				fmt.Fprintf(os.Stderr, "statsd port: %d\n", statsd_port)
 				fmt.Fprintf(os.Stderr, "server ip: %s\n", server_ip)
@@ -229,7 +237,7 @@ func main() {
 				if !c.GlobalBool("disable-kafka") {
 					err = kafka.Init(brokers, hostname)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error getting opening kafka connection: %+v\n", err)
+						fmt.Fprintf(os.Stderr, "Error opening kafka connection: %+v\n", err)
 					}
 				}
 
@@ -239,9 +247,15 @@ func main() {
 				}
 				statsd.Inc("logs2kafka.app.started", 1, 1)
 
+				messages := make(chan Message)
+
 				syslog := Syslog{}
-				syslog.Messages = make(chan Message)
+				syslog.Messages = messages
 				syslog.Init(int(syslog_port))
+
+				graylog := Graylog{}
+				graylog.Messages = messages
+				graylog.Init(int(graylog_port))
 
 				serverInfo := ServerInfo{}
 				serverInfo.ServerIP = server_ip

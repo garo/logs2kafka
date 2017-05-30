@@ -184,3 +184,30 @@ func TestEnsureMessageServiceAddsHostnameAndServerIP(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, value, "10.0.0.1")
 }
+
+func TestEnsureMessageDottedNames(t *testing.T) {
+
+	i := ServerInfo{}
+	i.Hostname = "thehost"
+	i.ServerIP = "10.0.0.1"
+
+	m := JSONToMessage("{\"foo.bar\":\"hello\", \"normal\":\"world\", \"another.key.name\":\"test\"}")
+	err := m.ParseJSON()
+	assert.Nil(t, err)
+
+	err = EnsureMessageDottedNames(i, &m)
+	assert.Nil(t, err)
+
+	value, ok := m.Container.Path("foo_bar").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "hello")
+
+	value, ok = m.Container.Path("normal").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "world")
+
+	value, ok = m.Container.Path("another_key_name").Data().(string)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, value, "test")
+
+}

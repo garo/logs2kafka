@@ -163,6 +163,11 @@ func EnsureMessageFormat(i ServerInfo, m *Message) error {
 		return err
 	}
 
+	err = EnsureMessageDottedNames(i, m)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -258,6 +263,20 @@ func EnsureMessageServiceServerInfo(i ServerInfo, m *Message) error {
 
 	if i.ServerIP != "" {
 		m.Container.Set(i.ServerIP, "server_ip")
+	}
+
+	return nil
+}
+
+func EnsureMessageDottedNames(i ServerInfo, m *Message) error {
+
+	children, _ := m.Container.ChildrenMap()
+	for key, value := range children {
+		if strings.Index(key, ".") != -1 {
+			newKey := strings.Replace(key, ".", "_", -1)
+			m.Container.Set(value.Data(), newKey)
+			m.Container.Delete(key)
+		}
 	}
 
 	return nil

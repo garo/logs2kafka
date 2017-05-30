@@ -131,6 +131,7 @@ func (s *Graylog) ParseGraylogMessage(buffer []byte) (error) {
 
 func (s *Graylog) Init(port int) error {
 	s.Port = port
+	s.ReceivedChunks = make(map[string]*Chunk)
 	s.close = make(chan bool)
 
 	ServerAddr, err := net.ResolveUDPAddr("udp", ":"+strconv.Itoa(port))

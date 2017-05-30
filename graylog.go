@@ -271,7 +271,6 @@ func ConvertGraylogFields(m *Message) error {
 		for _, part := range parts {
 			keyvalue := strings.Split(part, "=")
 			if len(keyvalue) == 2 {
-				fmt.Printf("Found key %s to value %s\n", keyvalue[0], keyvalue[1])
 				m.Container.Set(keyvalue[1], keyvalue[0])
 				replaced = true
 			}

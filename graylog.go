@@ -166,7 +166,7 @@ func (s *Graylog) Init(port int) error {
 						if s.Statsd != nil {
 							s.Statsd.Inc("logs2kafka.invalid_graylog_messages", 1, 0.1)
 						}
-						fmt.Fprintf(os.Stderr, "Error parsing json message: %s\n", err)
+						fmt.Fprintf(os.Stderr, "Error parsing json message: %s. Buffer length: %d. Buffer: %s\n", err, n, buf[0:n])
 					}
 				}
 			}

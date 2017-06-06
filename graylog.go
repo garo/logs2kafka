@@ -65,7 +65,6 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 	// buffer[10] is Sequence number - 1 byte:
 	// The sequence number of this chunk. Starting at 0 and always less than the sequence count.
 	part := int(buffer[10])
-	fmt.Printf("Part number: %d (%x), % x\n", part, buffer[10], buffer[0:15])
 	if part > c.TotalCount {
 		fmt.Printf("Invalid part number: %d (%x), buffer: % x\n", part, buffer[10], buffer)
 		return errors.New("Invalid part number")

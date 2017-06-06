@@ -284,6 +284,43 @@ func TestGraylogChunkProcessComplete(t *testing.T) {
 
 }
 
+func TestGraylogChunkProcessComplete2(t *testing.T) {
+
+	s := Graylog{}
+
+	s.ReceivedChunks = make(map[string]*Chunk)
+	s.Messages = make(chan Message, 10)
+
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x00\x03{\"version\":\"1.1\",\"host\":\"delivery-staging-us-east-1b-asg-general\",\"test\":\"foobar\",\"level\":7"))
+
+	assert.Equal(t, 1, len(s.ReceivedChunks))
+	
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x01\x03,\"test2\":\"hello\","))
+	s.HandleChunkedPacket([]byte("\x1e\x0f\x00\x00\x00\x00\xDE\xAD\xBE\xEF\x02\x03\"foo\":\"bar\"}"))
+
+	msg := <-s.Messages
+	value, ok := msg.Container.Path("test").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "foobar", value)
+
+	value, ok = msg.Container.Path("test2").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "hello", value)
+
+	// Ensure that ConvertGraylogFields has been called
+	value, ok = msg.Container.Path("level").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "DEBUG", value)
+
+	value, ok = msg.Container.Path("foo").Data().(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "bar", value)
+
+
+	assert.Equal(t, 0, len(s.ReceivedChunks))
+
+}
+
 func TestGraylogSingleFullChunkProcessing(t *testing.T) {
 
 	s := Graylog{}

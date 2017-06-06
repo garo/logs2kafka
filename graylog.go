@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"errors"
 	"strings"
 	"time"
 	"github.com/Jeffail/gabs"
@@ -63,7 +64,13 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 
 	// buffer[10] is Sequence number - 1 byte:
 	// The sequence number of this chunk. Starting at 0 and always less than the sequence count.
-	c.Parts[int(buffer[10])] = buffer[12:]
+	part := int(buffer[10])
+	fmt.Printf("Part number: %d (%x), % x\n", part, buffer[10], buffer[0:15])
+	if part > c.TotalCount {
+		fmt.Printf("Invalid part number: %d (%x), buffer: % x\n", part, buffer[10], buffer)
+		return errors.New("Invalid part number")
+	}
+	c.Parts[part] = buffer[12:]
 
 	c.ReceivedBytes += len(c.Parts[c.ReceivedCount])
 	c.ReceivedCount += 1
@@ -82,8 +89,10 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 
 		m := Message{}
 		m.Data = buf
+		//fmt.Printf("Complete packet with %d chunks: %s\n", c.ReceivedCount, buf)
 		err := m.ParseJSON()
 		if err != nil {
+			fmt.Printf("Could not parse chunked (%d parts) json message (%d bytes). Message: %s\n", c.ReceivedCount, c.ReceivedBytes, buf)
 			return err
 		}
 

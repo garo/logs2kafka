@@ -1,4 +1,4 @@
-FROM alpine
+FROM debian
 
 ADD logs2kafka /
 CMD /logs2kafka logs2kafka

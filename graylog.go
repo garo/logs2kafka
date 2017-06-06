@@ -95,7 +95,7 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 			fmt.Printf("Could not parse chunked (%d parts) json message (%d bytes). Message: %s\n", 
 			c.ReceivedCount, c.ReceivedBytes, buf)
 			for i, sub := range c.Parts {
-				fmt.Printf("Part %d: %v\n", i, sub)
+				fmt.Printf("Part %d: %s\n", i, sub)
 			}
 			
 			return err

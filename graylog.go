@@ -70,7 +70,8 @@ func (s *Graylog) HandleChunkedPacket(buffer []byte) error {
 		fmt.Printf("Invalid part number: %d (%x), buffer: % x\n", part, buffer[10], buffer)
 		return errors.New("Invalid part number")
 	}
-	c.Parts[part] = buffer[12:]
+	c.Parts[part] = make([]byte, len(buffer) - 12)
+	copy(c.Parts[part], buffer[12:])
 
 	c.ReceivedBytes += len(c.Parts[c.ReceivedCount])
 	c.ReceivedCount += 1
